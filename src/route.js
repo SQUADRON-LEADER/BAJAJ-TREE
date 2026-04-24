@@ -59,9 +59,9 @@ router.post('/bfhl', (req, res) => {
 
     return res.json({
       is_success: true,
-      user_id: 'johndoe_17091999',
-      email_id: 'john@example.com',
-      college_roll_number: 'RA2111026010001',
+      user_id: 'aayush_24042026',
+      email_id: 'aayush@example.com',
+      college_roll_number: 'RA2111026010088',
       valid_edges: validEdges,
       invalid_entries: invalidEntries,
       duplicate_edges: duplicateEdges,
