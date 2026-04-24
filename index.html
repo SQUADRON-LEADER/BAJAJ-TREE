@@ -388,6 +388,25 @@
     .root {
       color: var(--green);
       font-weight: 700;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .root-pill {
+      border: 1px solid rgba(44, 255, 136, 0.6);
+      background: rgba(44, 255, 136, 0.14);
+      color: #dbffe9;
+      padding: 2px 8px;
+      font-size: 11px;
+      letter-spacing: 0.06em;
+      text-shadow: 0 0 8px rgba(44, 255, 136, 0.35);
+    }
+
+    .root-value {
+      color: #f3fffb;
+      font-size: 14px;
+      letter-spacing: 0.08em;
     }
 
     .meta {
@@ -426,43 +445,63 @@
     }
 
     .svg-edge {
-      stroke: rgba(57, 217, 255, 0.54);
-      stroke-width: 2;
+      stroke: rgba(57, 217, 255, 0.62);
+      stroke-width: 2.6;
       vector-effect: non-scaling-stroke;
+      fill: none;
     }
 
     .svg-node {
-      transform-box: fill-box;
-      transform-origin: center;
+      filter: drop-shadow(0 0 8px rgba(57, 217, 255, 0.15));
     }
 
     .svg-node-circle {
-      r: 22;
-      fill: rgba(16, 27, 36, 0.96);
-      stroke: rgba(57, 217, 255, 0.6);
-      stroke-width: 2;
+      fill: rgba(8, 26, 39, 0.98);
+      stroke: rgba(97, 224, 255, 0.86);
+      stroke-width: 3;
       vector-effect: non-scaling-stroke;
     }
 
     .svg-node.root .svg-node-circle {
-      fill: rgba(22, 48, 45, 0.95);
+      fill: rgba(20, 57, 48, 0.95);
       stroke: var(--green);
-      stroke-width: 3;
-      filter: drop-shadow(0 0 8px rgba(44, 255, 136, 0.28));
+      stroke-width: 3.2;
+      filter: drop-shadow(0 0 12px rgba(44, 255, 136, 0.34));
     }
 
     .svg-node.leaf {
-      opacity: 0.58;
+      opacity: 0.88;
     }
 
     .svg-node-label {
-      fill: #e7fff8;
-      font-size: 16px;
-      font-weight: 700;
+      fill: #f3fffb;
+      font-size: 20px;
+      font-weight: 800;
       text-anchor: middle;
       dominant-baseline: middle;
       user-select: none;
       pointer-events: none;
+      font-family: 'JetBrains Mono', monospace;
+      paint-order: stroke;
+      stroke: rgba(5, 15, 22, 0.75);
+      stroke-width: 2;
+    }
+
+    .svg-node-tag {
+      fill: rgba(9, 15, 26, 0.92);
+      stroke: rgba(57, 217, 255, 0.5);
+      stroke-width: 1.5;
+      rx: 6;
+      ry: 6;
+    }
+
+    .svg-node-tag-label {
+      fill: #9de7ff;
+      text-anchor: middle;
+      dominant-baseline: middle;
+      font-size: 9px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
     }
 
     .node-anim,
@@ -471,19 +510,9 @@
       animation: diagramIn 420ms cubic-bezier(0.22, 0.61, 0.36, 1) forwards;
     }
 
-    .node-anim {
-      transform: scale(0.84);
-    }
-
     @keyframes diagramIn {
-      from {
-        opacity: 0;
-        transform: scale(0.84);
-      }
-      to {
-        opacity: 1;
-        transform: scale(1);
-      }
+      from { opacity: 0; }
+      to   { opacity: 1; }
     }
 
     .cycle-state {
@@ -1231,9 +1260,9 @@
 
       const NS = 'http://www.w3.org/2000/svg';
       const width = 1000;
-      const topPad = 58;
-      const bottomPad = 60;
-      const levelGap = 122;
+      const topPad = 76;
+      const bottomPad = 78;
+      const levelGap = 128;
 
       const levelIndices = Array.from(model.levels.keys()).sort((a, b) => a - b);
       const maxLevel = levelIndices.length > 0 ? levelIndices[levelIndices.length - 1] : 0;
@@ -1267,16 +1296,17 @@
           continue;
         }
 
-        const line = document.createElementNS(NS, 'line');
-        line.setAttribute('class', 'svg-edge edge-anim');
-        line.setAttribute('x1', String(from.x));
-        line.setAttribute('y1', String(from.y));
-        line.setAttribute('x2', String(to.x));
-        line.setAttribute('y2', String(to.y));
+        const curveY = (from.y + to.y) / 2;
+        const path = document.createElementNS(NS, 'path');
+        path.setAttribute('class', 'svg-edge edge-anim');
+        path.setAttribute(
+          'd',
+          `M ${from.x} ${from.y + 30} C ${from.x} ${curveY}, ${to.x} ${curveY}, ${to.x} ${to.y - 30}`
+        );
 
         const childIndex = model.bfsOrder.get(edge.to) || 0;
-        line.style.animationDelay = `${childIndex * 80}ms`;
-        edgeLayer.appendChild(line);
+        path.style.animationDelay = `${childIndex * 80}ms`;
+        edgeLayer.appendChild(path);
       }
 
       const nodesInBfsOrder = Array.from(model.bfsOrder.entries())
@@ -1302,18 +1332,34 @@
 
         const circle = document.createElementNS(NS, 'circle');
         circle.setAttribute('class', 'svg-node-circle');
-        circle.setAttribute('r', '22');
+        circle.setAttribute('r', '31');
         circle.setAttribute('cx', '0');
         circle.setAttribute('cy', '0');
 
         const label = document.createElementNS(NS, 'text');
         label.setAttribute('class', 'svg-node-label');
         label.setAttribute('x', '0');
-        label.setAttribute('y', '0');
+        label.setAttribute('y', '1');
         label.textContent = node;
+
+        const tagWidth = isRoot ? 44 : 40;
+        const tag = document.createElementNS(NS, 'rect');
+        tag.setAttribute('class', 'svg-node-tag');
+        tag.setAttribute('x', String(-tagWidth / 2));
+        tag.setAttribute('y', '38');
+        tag.setAttribute('width', String(tagWidth));
+        tag.setAttribute('height', '16');
+
+        const tagLabel = document.createElementNS(NS, 'text');
+        tagLabel.setAttribute('class', 'svg-node-tag-label');
+        tagLabel.setAttribute('x', '0');
+        tagLabel.setAttribute('y', '46');
+        tagLabel.textContent = isRoot ? 'ROOT' : (isLeaf ? 'LEAF' : 'NODE');
 
         group.appendChild(circle);
         group.appendChild(label);
+        group.appendChild(tag);
+        group.appendChild(tagLabel);
         nodeLayer.appendChild(group);
       }
 
@@ -1361,7 +1407,7 @@
         const head = document.createElement('div');
         head.className = 'tree-head';
         head.innerHTML =
-          '<span class="root">ROOT ' + (group.root || '-') + '</span>' +
+          '<span class="root"><span class="root-pill">ROOT</span><span class="root-value">' + (group.root || '-') + '</span></span>' +
           '<span class="meta' + (cycle ? ' cycle' : '') + '">' + metaLabel + '</span>';
 
         card.appendChild(head);
