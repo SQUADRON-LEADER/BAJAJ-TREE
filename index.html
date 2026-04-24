@@ -1,0 +1,1522 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BFHL Tree Visualizer</title>
+  <style>
+    :root {
+      --bg: #0a0a0f;
+      --bg-elev: #10121a;
+      --bg-elev-2: #0d1117;
+      --line: #1a2432;
+      --line-strong: #203044;
+      --text: #d7ffe7;
+      --muted: #78a494;
+      --green: #2cff88;
+      --cyan: #39d9ff;
+      --red: #ff4d6d;
+      --yellow: #ffd166;
+      --shadow-green: 0 0 22px rgba(44, 255, 136, 0.08);
+      --shadow-cyan: 0 0 24px rgba(57, 217, 255, 0.08);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      margin: 0;
+      min-height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: "JetBrains Mono", "Fira Code", "Consolas", "Menlo", monospace;
+      letter-spacing: 0.01em;
+    }
+
+    body {
+      background-image:
+        linear-gradient(rgba(57, 217, 255, 0.06) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(44, 255, 136, 0.06) 1px, transparent 1px),
+        radial-gradient(circle at 20% 10%, rgba(44, 255, 136, 0.08), transparent 42%),
+        radial-gradient(circle at 80% 0%, rgba(57, 217, 255, 0.08), transparent 36%);
+      background-size: 28px 28px, 28px 28px, 100% 100%, 100% 100%;
+      background-attachment: fixed;
+    }
+
+    .app {
+      width: min(1200px, 94vw);
+      margin: 24px auto 36px;
+      display: grid;
+      gap: 14px;
+      animation: boot 700ms ease-out;
+    }
+
+    @keyframes boot {
+      from {
+        opacity: 0;
+        transform: translateY(10px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .panel {
+      background: linear-gradient(180deg, rgba(16, 18, 26, 0.95), rgba(10, 10, 15, 0.95));
+      border: 1px solid var(--line-strong);
+      padding: 14px;
+      box-shadow: var(--shadow-cyan);
+    }
+
+    .titlebar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid var(--line-strong);
+      padding-bottom: 10px;
+      margin-bottom: 12px;
+      text-transform: uppercase;
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(18px, 2.5vw, 28px);
+      color: var(--green);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      text-shadow: 0 0 14px rgba(44, 255, 136, 0.35);
+    }
+
+    .subtitle {
+      margin: 6px 0 0;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.4;
+    }
+
+    .input-wrap {
+      display: grid;
+      gap: 10px;
+    }
+
+    .tag-input-shell {
+      width: 100%;
+      min-height: 120px;
+      background: var(--bg-elev-2);
+      border: 1px solid var(--line-strong);
+      padding: 10px;
+      box-shadow: inset 0 0 0 1px rgba(44, 255, 136, 0.05);
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: flex-start;
+      cursor: text;
+    }
+
+    .tag-input-shell:focus-within {
+      border-color: var(--green);
+      box-shadow: 0 0 0 1px var(--green), inset 0 0 0 1px rgba(57, 217, 255, 0.18);
+    }
+
+    .queued-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      border: 1px solid;
+      padding: 4px 8px;
+      font-size: 12px;
+      line-height: 1.2;
+      max-width: 100%;
+    }
+
+    .queued-pill.valid {
+      border-color: rgba(44, 255, 136, 0.65);
+      color: #c6ffe2;
+      background: rgba(44, 255, 136, 0.14);
+    }
+
+    .queued-pill.invalid {
+      border-color: rgba(255, 77, 109, 0.75);
+      color: #ffc4d0;
+      background: rgba(255, 77, 109, 0.16);
+    }
+
+    .queued-pill-text {
+      word-break: break-all;
+    }
+
+    .queued-pill-remove {
+      border: none;
+      background: transparent;
+      color: inherit;
+      font: inherit;
+      padding: 0;
+      line-height: 1;
+      cursor: pointer;
+      opacity: 0.85;
+    }
+
+    .queued-pill-remove:hover {
+      opacity: 1;
+    }
+
+    .tag-editor {
+      flex: 1 1 220px;
+      min-width: 150px;
+      border: none;
+      background: transparent;
+      color: var(--text);
+      font: inherit;
+      outline: none;
+      padding: 4px 2px;
+    }
+
+    .queue-badge {
+      border: 1px solid var(--line-strong);
+      color: var(--cyan);
+      background: rgba(57, 217, 255, 0.08);
+      padding: 5px 8px;
+      font-size: 11px;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    .secondary-btn {
+      border-color: var(--line-strong);
+      color: var(--cyan);
+      background: rgba(57, 217, 255, 0.08);
+      font-size: 11px;
+      padding: 9px 12px;
+    }
+
+    .controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+    }
+
+    button {
+      border: 1px solid var(--green);
+      background: linear-gradient(180deg, rgba(44, 255, 136, 0.14), rgba(44, 255, 136, 0.06));
+      color: var(--green);
+      font: inherit;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      padding: 10px 14px;
+      cursor: pointer;
+      transition: transform 120ms ease, box-shadow 120ms ease, background 120ms ease;
+      box-shadow: var(--shadow-green);
+    }
+
+    button:hover:enabled {
+      transform: translateY(-1px);
+      background: linear-gradient(180deg, rgba(44, 255, 136, 0.2), rgba(44, 255, 136, 0.08));
+      box-shadow: 0 0 26px rgba(44, 255, 136, 0.16);
+    }
+
+    button:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    .submit-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      min-width: 150px;
+    }
+
+    .spinner {
+      width: 14px;
+      height: 14px;
+      border: 2px solid rgba(44, 255, 136, 0.35);
+      border-top-color: var(--green);
+      border-radius: 50%;
+      animation: spin 650ms linear infinite;
+      display: none;
+    }
+
+    .submit-btn.loading .spinner {
+      display: inline-block;
+    }
+
+    @keyframes spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
+    .hint {
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .error-banner {
+      display: none;
+      border: 1px solid var(--red);
+      background: rgba(255, 77, 109, 0.08);
+      color: #ff9ab0;
+      padding: 10px 12px;
+      white-space: pre-wrap;
+    }
+
+    .error-banner.show {
+      display: block;
+      animation: flash 220ms ease;
+    }
+
+    @keyframes flash {
+      from { opacity: 0.2; }
+      to { opacity: 1; }
+    }
+
+    .identity {
+      display: none;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 1px;
+      border: 1px solid var(--line-strong);
+      background: var(--line-strong);
+    }
+
+    .identity.show {
+      display: grid;
+    }
+
+    .results-shell {
+      display: none;
+      gap: 12px;
+    }
+
+    .results-shell.show {
+      display: grid;
+      animation: resultsFadeIn 300ms ease-out;
+    }
+
+    @keyframes resultsFadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(6px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .identity-item {
+      background: var(--bg-elev);
+      padding: 10px 12px;
+      min-height: 64px;
+    }
+
+    .label {
+      display: block;
+      color: var(--muted);
+      font-size: 11px;
+      text-transform: uppercase;
+      margin-bottom: 6px;
+    }
+
+    .value {
+      color: var(--cyan);
+      font-size: 13px;
+      word-break: break-all;
+    }
+
+    .main-grid {
+      display: grid;
+      grid-template-columns: 2.2fr 1fr;
+      gap: 12px;
+    }
+
+    .cards {
+      display: grid;
+      gap: 10px;
+    }
+
+    .tree-card {
+      border: 1px solid var(--line);
+      background: linear-gradient(180deg, rgba(16, 18, 26, 0.85), rgba(12, 16, 22, 0.9));
+      padding: 10px;
+      box-shadow: var(--shadow-cyan);
+      animation: rise 240ms ease;
+    }
+
+    @keyframes rise {
+      from {
+        opacity: 0;
+        transform: translateY(6px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .tree-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 8px;
+      border-bottom: 1px solid var(--line);
+      padding-bottom: 7px;
+      text-transform: uppercase;
+      font-size: 12px;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .tree-head::after {
+      content: '[collapse]';
+      color: var(--muted);
+      font-size: 10px;
+      letter-spacing: 0.05em;
+      margin-left: auto;
+    }
+
+    .tree-card.collapsed .tree-head::after {
+      content: '[expand]';
+    }
+
+    .root {
+      color: var(--green);
+      font-weight: 700;
+    }
+
+    .meta {
+      color: var(--cyan);
+    }
+
+    .meta.cycle {
+      color: var(--red);
+      text-shadow: 0 0 10px rgba(255, 77, 109, 0.34);
+    }
+
+    .tree-diagram-wrap {
+      width: 100%;
+      min-height: 220px;
+      border: 1px solid var(--line);
+      background: linear-gradient(180deg, rgba(8, 11, 18, 0.92), rgba(6, 9, 14, 0.95));
+      overflow: hidden;
+    }
+
+    .card-body {
+      overflow: hidden;
+      transition: max-height 220ms ease, opacity 220ms ease;
+      max-height: 520px;
+      opacity: 1;
+    }
+
+    .tree-card.collapsed .card-body {
+      max-height: 0;
+      opacity: 0;
+    }
+
+    .tree-svg {
+      width: 100%;
+      height: auto;
+      display: block;
+    }
+
+    .svg-edge {
+      stroke: rgba(57, 217, 255, 0.54);
+      stroke-width: 2;
+      vector-effect: non-scaling-stroke;
+    }
+
+    .svg-node {
+      transform-box: fill-box;
+      transform-origin: center;
+    }
+
+    .svg-node-circle {
+      r: 22;
+      fill: rgba(16, 27, 36, 0.96);
+      stroke: rgba(57, 217, 255, 0.6);
+      stroke-width: 2;
+      vector-effect: non-scaling-stroke;
+    }
+
+    .svg-node.root .svg-node-circle {
+      fill: rgba(22, 48, 45, 0.95);
+      stroke: var(--green);
+      stroke-width: 3;
+      filter: drop-shadow(0 0 8px rgba(44, 255, 136, 0.28));
+    }
+
+    .svg-node.leaf {
+      opacity: 0.58;
+    }
+
+    .svg-node-label {
+      fill: #e7fff8;
+      font-size: 16px;
+      font-weight: 700;
+      text-anchor: middle;
+      dominant-baseline: middle;
+      user-select: none;
+      pointer-events: none;
+    }
+
+    .node-anim,
+    .edge-anim {
+      opacity: 0;
+      animation: diagramIn 420ms cubic-bezier(0.22, 0.61, 0.36, 1) forwards;
+    }
+
+    .node-anim {
+      transform: scale(0.84);
+    }
+
+    @keyframes diagramIn {
+      from {
+        opacity: 0;
+        transform: scale(0.84);
+      }
+      to {
+        opacity: 1;
+        transform: scale(1);
+      }
+    }
+
+    .cycle-state {
+      min-height: 220px;
+      border: 1px solid rgba(255, 77, 109, 0.5);
+      background: linear-gradient(180deg, rgba(40, 10, 17, 0.4), rgba(20, 8, 12, 0.55));
+      display: grid;
+      place-items: center;
+      gap: 10px;
+      padding: 14px;
+      text-align: center;
+    }
+
+    .cycle-icon {
+      color: var(--red);
+      font-size: 34px;
+      line-height: 1;
+      text-shadow: 0 0 12px rgba(255, 77, 109, 0.45);
+    }
+
+    .cycle-badge {
+      border: 1px solid rgba(255, 77, 109, 0.8);
+      background: rgba(255, 77, 109, 0.12);
+      color: #ffb1be;
+      font-size: 11px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      font-weight: 700;
+      padding: 7px 10px;
+    }
+
+    .cycle-empty {
+      color: #ff9aae;
+      font-size: 12px;
+      opacity: 0.9;
+    }
+
+    .side {
+      display: grid;
+      gap: 10px;
+      align-content: start;
+    }
+
+    .mini-title {
+      margin: 0 0 8px;
+      color: var(--yellow);
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      border-bottom: 1px solid var(--line);
+      padding-bottom: 6px;
+    }
+
+    .tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .tag {
+      display: inline-block;
+      border: 1px solid var(--line-strong);
+      background: var(--bg-elev-2);
+      color: #d1efe3;
+      padding: 4px 7px;
+      font-size: 11px;
+    }
+
+    .tag.warn {
+      border-color: rgba(255, 209, 102, 0.55);
+      color: var(--yellow);
+    }
+
+    .tag.dup {
+      border-color: rgba(57, 217, 255, 0.55);
+      color: var(--cyan);
+    }
+
+    .empty {
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .summary {
+      border: 1px solid var(--line-strong);
+      background: linear-gradient(90deg, rgba(57, 217, 255, 0.08), rgba(44, 255, 136, 0.08));
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 1px;
+    }
+
+    .summary .cell {
+      background: rgba(10, 10, 15, 0.95);
+      padding: 10px;
+      min-height: 62px;
+    }
+
+    .raw-panel {
+      border: 1px solid var(--line-strong);
+      background: rgba(11, 14, 20, 0.95);
+    }
+
+    .raw-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      padding: 10px;
+      border-bottom: 1px solid var(--line);
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .raw-title {
+      color: var(--cyan);
+      font-size: 12px;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+
+    .raw-controls {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .raw-toggle {
+      color: var(--muted);
+      font-size: 10px;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+
+    .copy-btn {
+      border: 1px solid var(--line-strong);
+      color: var(--cyan);
+      background: rgba(57, 217, 255, 0.08);
+      padding: 5px 8px;
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      cursor: pointer;
+    }
+
+    .raw-body {
+      max-height: 320px;
+      overflow: auto;
+      transition: max-height 220ms ease, opacity 220ms ease;
+      opacity: 1;
+    }
+
+    .raw-panel.collapsed .raw-body {
+      max-height: 0;
+      opacity: 0;
+      overflow: hidden;
+    }
+
+    .raw-json {
+      margin: 0;
+      padding: 12px;
+      color: #b6f4ff;
+      font-size: 12px;
+      white-space: pre;
+    }
+
+    .history-toggle {
+      position: fixed;
+      right: 16px;
+      top: 18px;
+      z-index: 40;
+      border-color: var(--line-strong);
+      color: var(--cyan);
+      background: rgba(57, 217, 255, 0.12);
+      font-size: 11px;
+      padding: 8px 10px;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+    }
+
+    .history-sidebar {
+      position: fixed;
+      top: 0;
+      right: 0;
+      width: min(360px, 92vw);
+      height: 100vh;
+      border-left: 1px solid var(--line-strong);
+      background: linear-gradient(180deg, rgba(14, 17, 25, 0.98), rgba(10, 10, 15, 0.98));
+      box-shadow: -16px 0 32px rgba(0, 0, 0, 0.45);
+      transform: translateX(100%);
+      transition: transform 260ms ease;
+      z-index: 45;
+      display: grid;
+      grid-template-rows: auto 1fr auto;
+    }
+
+    body.history-open .history-sidebar {
+      transform: translateX(0);
+    }
+
+    .history-head {
+      padding: 12px;
+      border-bottom: 1px solid var(--line);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .history-title {
+      color: var(--cyan);
+      font-size: 12px;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+
+    .history-close {
+      border-color: var(--line-strong);
+      color: var(--muted);
+      background: rgba(124, 138, 153, 0.08);
+      font-size: 10px;
+      padding: 6px 8px;
+    }
+
+    .history-list {
+      overflow: auto;
+      padding: 10px;
+      display: grid;
+      gap: 8px;
+      align-content: start;
+    }
+
+    .history-item {
+      border: 1px solid var(--line);
+      background: rgba(12, 16, 23, 0.9);
+      padding: 9px;
+      cursor: pointer;
+      text-align: left;
+    }
+
+    .history-item:hover {
+      border-color: rgba(57, 217, 255, 0.55);
+      background: rgba(16, 23, 33, 0.92);
+    }
+
+    .history-time {
+      color: #b7e8ff;
+      font-size: 11px;
+      margin-bottom: 7px;
+    }
+
+    .history-meta {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 6px;
+      color: var(--muted);
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .history-foot {
+      border-top: 1px solid var(--line);
+      padding: 10px;
+    }
+
+    .history-clear {
+      width: 100%;
+      border-color: rgba(255, 77, 109, 0.55);
+      color: #ffb2c0;
+      background: rgba(255, 77, 109, 0.1);
+      font-size: 11px;
+      padding: 9px 10px;
+    }
+
+    .history-empty {
+      color: var(--muted);
+      font-size: 12px;
+      border: 1px dashed var(--line);
+      padding: 10px;
+    }
+
+    .cell .k {
+      display: block;
+      color: var(--muted);
+      font-size: 11px;
+      text-transform: uppercase;
+      margin-bottom: 6px;
+    }
+
+    .cell .v {
+      color: var(--green);
+      font-size: 18px;
+      font-weight: 700;
+      text-shadow: 0 0 10px rgba(44, 255, 136, 0.2);
+    }
+
+    @media (max-width: 900px) {
+      .main-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .identity,
+      .summary {
+        grid-template-columns: 1fr;
+      }
+
+      .history-toggle {
+        top: auto;
+        bottom: 16px;
+      }
+
+      .history-sidebar {
+        top: auto;
+        bottom: 0;
+        width: 100%;
+        height: min(62vh, 480px);
+        border-left: none;
+        border-top: 1px solid var(--line-strong);
+        box-shadow: 0 -14px 30px rgba(0, 0, 0, 0.45);
+        transform: translateY(100%);
+      }
+
+      body.history-open .history-sidebar {
+        transform: translateY(0);
+      }
+    }
+  </style>
+  <script>
+    window.API_BASE = window.API_BASE || 'http://localhost:3001';
+  </script>
+</head>
+<body>
+  <main class="app">
+    <section class="panel">
+      <div class="titlebar">
+        <span>BFHL Analyzer Console</span>
+        <span id="clock"></span>
+      </div>
+      <h1>BFHL Tree Visualizer</h1>
+      <p class="subtitle">Paste node edges as comma-separated or newline-separated values. Submit to inspect trees, cycles, invalid entries, and graph summary.</p>
+    </section>
+
+    <section class="panel input-wrap">
+      <div id="tagInputShell" class="tag-input-shell">
+        <input id="tagEditor" class="tag-editor" type="text" placeholder="Type edge and press Enter/comma (e.g. A->B)" />
+      </div>
+      <div class="controls">
+        <button id="loadExampleBtn" class="secondary-btn" type="button">Load Example</button>
+        <button id="clearAllBtn" class="secondary-btn" type="button">Clear All</button>
+        <span id="entryCountBadge" class="queue-badge">0 nodes queued</span>
+        <button id="submitBtn" class="submit-btn" type="button">
+          <span id="submitSpinner" class="spinner"></span>
+          <span id="submitLabel">Run Analysis</span>
+        </button>
+        <span class="hint">Endpoint: POST http://localhost:3001/bfhl</span>
+      </div>
+      <div id="errorBanner" class="error-banner"></div>
+    </section>
+
+    <section id="resultsShell" class="results-shell">
+      <section id="identityBar" class="identity"></section>
+
+      <section class="main-grid">
+      <div class="panel">
+        <div class="titlebar">
+          <span>Hierarchies</span>
+          <span id="hierarchyCount">0 items</span>
+        </div>
+        <div id="hierarchyCards" class="cards">
+          <div class="empty">No data yet. Submit edges to render hierarchy cards.</div>
+        </div>
+      </div>
+
+      <aside class="side">
+        <section class="panel">
+          <h3 class="mini-title">Invalid Entries</h3>
+          <div id="invalidTags" class="tags">
+            <span class="empty">None</span>
+          </div>
+        </section>
+
+        <section class="panel">
+          <h3 class="mini-title">Duplicate Edges</h3>
+          <div id="duplicateTags" class="tags">
+            <span class="empty">None</span>
+          </div>
+        </section>
+      </aside>
+    </section>
+
+      <section class="summary" id="summaryBar">
+        <div class="cell">
+          <span class="k">Total Trees</span>
+          <span class="v" id="sumTrees">0</span>
+        </div>
+        <div class="cell">
+          <span class="k">Total Cycles</span>
+          <span class="v" id="sumCycles">0</span>
+        </div>
+        <div class="cell">
+          <span class="k">Largest Tree Root</span>
+          <span class="v" id="sumLargest">-</span>
+        </div>
+      </section>
+
+      <section id="rawPanel" class="raw-panel collapsed">
+        <div id="rawHead" class="raw-head">
+          <span class="raw-title">Raw Response JSON</span>
+          <div class="raw-controls">
+            <button id="copyJsonBtn" class="copy-btn" type="button">Copy</button>
+            <span id="rawToggle" class="raw-toggle">expand</span>
+          </div>
+        </div>
+        <div class="raw-body">
+          <pre id="rawJson" class="raw-json">{}</pre>
+        </div>
+      </section>
+    </section>
+  </main>
+
+  <button id="historyToggle" class="history-toggle" type="button">History</button>
+
+  <aside id="historySidebar" class="history-sidebar" aria-label="Session history">
+    <div class="history-head">
+      <span class="history-title">Session History</span>
+      <button id="historyClose" class="history-close" type="button">Close</button>
+    </div>
+    <div id="historyList" class="history-list"></div>
+    <div class="history-foot">
+      <button id="clearHistoryBtn" class="history-clear" type="button">Clear History</button>
+    </div>
+  </aside>
+
+  <script>
+    const baseUrl = String(window.API_BASE || 'http://localhost:3001').replace(/\/+$/, '');
+    const endpoint = baseUrl + '/bfhl';
+    const BASIC_EDGE_PATTERN = /^[A-Z]->[A-Z]$/;
+    const HISTORY_KEY = 'bfhl_session_history_v1';
+    const HISTORY_LIMIT = 5;
+    const SPEC_EXAMPLE = [
+      'A->B', 'A->C', 'B->D', 'C->E', 'E->F', 'X->Y', 'Y->Z', 'Z->X',
+      'P->Q', 'Q->R', 'G->H', 'G->H', 'G->I', 'hello', '1->2', 'A->'
+    ];
+
+    const tagInputShell = document.getElementById('tagInputShell');
+    const tagEditor = document.getElementById('tagEditor');
+    const loadExampleBtn = document.getElementById('loadExampleBtn');
+    const clearAllBtn = document.getElementById('clearAllBtn');
+    const entryCountBadge = document.getElementById('entryCountBadge');
+    const submitBtn = document.getElementById('submitBtn');
+    const submitSpinner = document.getElementById('submitSpinner');
+    const submitLabel = document.getElementById('submitLabel');
+    const errorBanner = document.getElementById('errorBanner');
+    const resultsShell = document.getElementById('resultsShell');
+    const identityBar = document.getElementById('identityBar');
+    const hierarchyCards = document.getElementById('hierarchyCards');
+    const hierarchyCount = document.getElementById('hierarchyCount');
+    const invalidTags = document.getElementById('invalidTags');
+    const duplicateTags = document.getElementById('duplicateTags');
+    const sumTrees = document.getElementById('sumTrees');
+    const sumCycles = document.getElementById('sumCycles');
+    const sumLargest = document.getElementById('sumLargest');
+    const rawPanel = document.getElementById('rawPanel');
+    const rawHead = document.getElementById('rawHead');
+    const rawJson = document.getElementById('rawJson');
+    const copyJsonBtn = document.getElementById('copyJsonBtn');
+    const rawToggle = document.getElementById('rawToggle');
+    const clock = document.getElementById('clock');
+    const historyToggle = document.getElementById('historyToggle');
+    const historyClose = document.getElementById('historyClose');
+    const historyList = document.getElementById('historyList');
+    const clearHistoryBtn = document.getElementById('clearHistoryBtn');
+    let queuedTags = [];
+    let sessionHistory = [];
+
+    function tickClock() {
+      const now = new Date();
+      clock.textContent = now.toLocaleTimeString();
+    }
+
+    setInterval(tickClock, 1000);
+    tickClock();
+
+    function splitRawInput(raw) {
+      return raw
+        .split(/[\n,]+/)
+        .map((item) => item.trim())
+        .filter((item) => item.length > 0);
+    }
+
+    function isBasicValid(value) {
+      return BASIC_EDGE_PATTERN.test(value);
+    }
+
+    function updateEntryCount() {
+      const count = queuedTags.length;
+      entryCountBadge.textContent = `${count} ${count === 1 ? 'node' : 'nodes'} queued`;
+    }
+
+    function renderQueuedTags() {
+      const existingPills = tagInputShell.querySelectorAll('.queued-pill');
+      existingPills.forEach((pill) => pill.remove());
+
+      queuedTags.forEach((value, index) => {
+        const pill = document.createElement('span');
+        pill.className = `queued-pill ${isBasicValid(value) ? 'valid' : 'invalid'}`;
+
+        const text = document.createElement('span');
+        text.className = 'queued-pill-text';
+        text.textContent = value;
+
+        const removeBtn = document.createElement('button');
+        removeBtn.className = 'queued-pill-remove';
+        removeBtn.type = 'button';
+        removeBtn.setAttribute('aria-label', `Remove ${value}`);
+        removeBtn.textContent = 'x';
+        removeBtn.addEventListener('click', () => {
+          queuedTags.splice(index, 1);
+          renderQueuedTags();
+        });
+
+        pill.appendChild(text);
+        pill.appendChild(removeBtn);
+        tagInputShell.insertBefore(pill, tagEditor);
+      });
+
+      updateEntryCount();
+    }
+
+    function addTags(values) {
+      if (!Array.isArray(values) || values.length === 0) {
+        return;
+      }
+
+      queuedTags.push(...values);
+      renderQueuedTags();
+    }
+
+    function addTagsFromEditor() {
+      const values = splitRawInput(tagEditor.value);
+      if (values.length > 0) {
+        addTags(values);
+      }
+      tagEditor.value = '';
+    }
+
+    function loadSpecExample() {
+      queuedTags = [...SPEC_EXAMPLE];
+      renderQueuedTags();
+    }
+
+    function clearAllTags() {
+      queuedTags = [];
+      renderQueuedTags();
+      tagEditor.value = '';
+      tagEditor.focus();
+    }
+
+    function setLoading(isLoading) {
+      submitBtn.disabled = isLoading;
+      submitBtn.classList.toggle('loading', isLoading);
+      submitSpinner.style.display = isLoading ? 'inline-block' : 'none';
+      submitLabel.textContent = isLoading ? 'Processing...' : 'Run Analysis';
+    }
+
+    function toggleRawPanel(forceOpen) {
+      const shouldOpen = typeof forceOpen === 'boolean' ? forceOpen : rawPanel.classList.contains('collapsed');
+      rawPanel.classList.toggle('collapsed', !shouldOpen);
+      rawToggle.textContent = shouldOpen ? 'collapse' : 'expand';
+    }
+
+    function formatHistoryTime(timestamp) {
+      return new Date(timestamp).toLocaleString();
+    }
+
+    function openHistory() {
+      document.body.classList.add('history-open');
+    }
+
+    function closeHistory() {
+      document.body.classList.remove('history-open');
+    }
+
+    function toggleHistory() {
+      document.body.classList.toggle('history-open');
+    }
+
+    function loadHistoryFromStorage() {
+      try {
+        const raw = localStorage.getItem(HISTORY_KEY);
+        if (!raw) {
+          sessionHistory = [];
+          return;
+        }
+
+        const parsed = JSON.parse(raw);
+        sessionHistory = Array.isArray(parsed) ? parsed.slice(0, HISTORY_LIMIT) : [];
+      } catch (error) {
+        sessionHistory = [];
+      }
+    }
+
+    function persistHistoryToStorage() {
+      localStorage.setItem(HISTORY_KEY, JSON.stringify(sessionHistory.slice(0, HISTORY_LIMIT)));
+    }
+
+    function addHistoryEntry(payload, nodeCount) {
+      const entry = {
+        timestamp: Date.now(),
+        nodeCount,
+        treeCount: Number(payload?.summary?.total_trees || 0),
+        cycleCount: Number(payload?.summary?.total_cycles || 0),
+        response: payload,
+      };
+
+      sessionHistory.unshift(entry);
+      sessionHistory = sessionHistory.slice(0, HISTORY_LIMIT);
+      persistHistoryToStorage();
+      renderHistoryList();
+    }
+
+    function renderHistoryList() {
+      historyList.innerHTML = '';
+
+      if (sessionHistory.length === 0) {
+        historyList.innerHTML = '<div class="history-empty">No history yet. Successful runs will appear here.</div>';
+        return;
+      }
+
+      sessionHistory.forEach((entry, index) => {
+        const item = document.createElement('button');
+        item.type = 'button';
+        item.className = 'history-item';
+        item.innerHTML =
+          `<div class="history-time">${formatHistoryTime(entry.timestamp)}</div>` +
+          '<div class="history-meta">' +
+          `<span>${entry.nodeCount} nodes</span>` +
+          `<span>${entry.treeCount} trees</span>` +
+          `<span>${entry.cycleCount} cycles</span>` +
+          '</div>';
+
+        item.addEventListener('click', () => {
+          const selected = sessionHistory[index];
+          if (!selected || !selected.response) {
+            return;
+          }
+          renderFullResult(selected.response);
+          closeHistory();
+        });
+
+        historyList.appendChild(item);
+      });
+    }
+
+    function clearHistory() {
+      sessionHistory = [];
+      persistHistoryToStorage();
+      renderHistoryList();
+    }
+
+    function showError(message) {
+      errorBanner.textContent = message;
+      errorBanner.classList.add('show');
+    }
+
+    function clearError() {
+      errorBanner.textContent = '';
+      errorBanner.classList.remove('show');
+    }
+
+    function createTagList(container, items, className) {
+      container.innerHTML = '';
+      if (!items || items.length === 0) {
+        container.innerHTML = '<span class="empty">None</span>';
+        return;
+      }
+
+      for (const item of items) {
+        const tag = document.createElement('span');
+        tag.className = 'tag ' + className;
+        tag.textContent = item;
+        container.appendChild(tag);
+      }
+    }
+
+    function buildHierarchyModel(hierarchy) {
+      if (!hierarchy || !hierarchy.root || !hierarchy.tree || !hierarchy.tree[hierarchy.root]) {
+        return null;
+      }
+
+      const root = hierarchy.root;
+      const levels = new Map();
+      const adjacency = new Map();
+      const edges = [];
+
+      function walk(node, subtree, level) {
+        if (!levels.has(level)) {
+          levels.set(level, []);
+        }
+        levels.get(level).push(node);
+
+        if (!adjacency.has(node)) {
+          adjacency.set(node, []);
+        }
+
+        for (const [child, childSubtree] of Object.entries(subtree || {})) {
+          edges.push({ from: node, to: child });
+          adjacency.get(node).push(child);
+          if (!adjacency.has(child)) {
+            adjacency.set(child, []);
+          }
+          walk(child, childSubtree || {}, level + 1);
+        }
+      }
+
+      walk(root, hierarchy.tree[root] || {}, 0);
+
+      const bfsOrder = new Map();
+      const queue = [root];
+      let index = 0;
+
+      while (queue.length > 0) {
+        const node = queue.shift();
+        if (bfsOrder.has(node)) {
+          continue;
+        }
+        bfsOrder.set(node, index);
+        index += 1;
+
+        for (const child of adjacency.get(node) || []) {
+          if (!bfsOrder.has(child)) {
+            queue.push(child);
+          }
+        }
+      }
+
+      return { root, levels, edges, adjacency, bfsOrder };
+    }
+
+    function createSvgDiagram(hierarchy) {
+      const model = buildHierarchyModel(hierarchy);
+      if (!model) {
+        return null;
+      }
+
+      const NS = 'http://www.w3.org/2000/svg';
+      const width = 1000;
+      const topPad = 58;
+      const bottomPad = 60;
+      const levelGap = 122;
+
+      const levelIndices = Array.from(model.levels.keys()).sort((a, b) => a - b);
+      const maxLevel = levelIndices.length > 0 ? levelIndices[levelIndices.length - 1] : 0;
+      const height = topPad + bottomPad + (maxLevel * levelGap);
+
+      const positionByNode = new Map();
+
+      for (const level of levelIndices) {
+        const nodes = model.levels.get(level) || [];
+        const count = nodes.length;
+        const y = topPad + (level * levelGap);
+
+        nodes.forEach((node, i) => {
+          const x = ((i + 1) / (count + 1)) * width;
+          positionByNode.set(node, { x, y });
+        });
+      }
+
+      const svg = document.createElementNS(NS, 'svg');
+      svg.setAttribute('class', 'tree-svg');
+      svg.setAttribute('viewBox', `0 0 ${width} ${height}`);
+      svg.setAttribute('preserveAspectRatio', 'xMidYMin meet');
+
+      const edgeLayer = document.createElementNS(NS, 'g');
+      const nodeLayer = document.createElementNS(NS, 'g');
+
+      for (const edge of model.edges) {
+        const from = positionByNode.get(edge.from);
+        const to = positionByNode.get(edge.to);
+        if (!from || !to) {
+          continue;
+        }
+
+        const line = document.createElementNS(NS, 'line');
+        line.setAttribute('class', 'svg-edge edge-anim');
+        line.setAttribute('x1', String(from.x));
+        line.setAttribute('y1', String(from.y));
+        line.setAttribute('x2', String(to.x));
+        line.setAttribute('y2', String(to.y));
+
+        const childIndex = model.bfsOrder.get(edge.to) || 0;
+        line.style.animationDelay = `${childIndex * 80}ms`;
+        edgeLayer.appendChild(line);
+      }
+
+      const nodesInBfsOrder = Array.from(model.bfsOrder.entries())
+        .sort((a, b) => a[1] - b[1])
+        .map((entry) => entry[0]);
+
+      for (const node of nodesInBfsOrder) {
+        const position = positionByNode.get(node);
+        if (!position) {
+          continue;
+        }
+
+        const children = model.adjacency.get(node) || [];
+        const isLeaf = children.length === 0;
+        const isRoot = node === model.root;
+
+        const group = document.createElementNS(NS, 'g');
+        group.setAttribute('class', `svg-node node-anim${isRoot ? ' root' : ''}${isLeaf ? ' leaf' : ''}`);
+        group.setAttribute('transform', `translate(${position.x}, ${position.y})`);
+
+        const bfsIndex = model.bfsOrder.get(node) || 0;
+        group.style.animationDelay = `${bfsIndex * 80}ms`;
+
+        const circle = document.createElementNS(NS, 'circle');
+        circle.setAttribute('class', 'svg-node-circle');
+        circle.setAttribute('r', '22');
+        circle.setAttribute('cx', '0');
+        circle.setAttribute('cy', '0');
+
+        const label = document.createElementNS(NS, 'text');
+        label.setAttribute('class', 'svg-node-label');
+        label.setAttribute('x', '0');
+        label.setAttribute('y', '0');
+        label.textContent = node;
+
+        group.appendChild(circle);
+        group.appendChild(label);
+        nodeLayer.appendChild(group);
+      }
+
+      svg.appendChild(edgeLayer);
+      svg.appendChild(nodeLayer);
+      return svg;
+    }
+
+    function renderIdentity(data) {
+      const items = [
+        ['USER ID', data.user_id || '-'],
+        ['EMAIL', data.email_id || '-'],
+        ['ROLL NUMBER', data.college_roll_number || '-']
+      ];
+
+      identityBar.innerHTML = '';
+      items.forEach(([label, value]) => {
+        const block = document.createElement('div');
+        block.className = 'identity-item';
+        block.innerHTML = '<span class="label">' + label + '</span><span class="value">' + value + '</span>';
+        identityBar.appendChild(block);
+      });
+
+      identityBar.classList.add('show');
+    }
+
+    function renderHierarchies(groups) {
+      hierarchyCards.innerHTML = '';
+
+      if (!groups || groups.length === 0) {
+        hierarchyCards.innerHTML = '<div class="empty">No hierarchy data returned.</div>';
+        hierarchyCount.textContent = '0 items';
+        return;
+      }
+
+      hierarchyCount.textContent = groups.length + ' items';
+
+      groups.forEach((group) => {
+        const card = document.createElement('article');
+        card.className = 'tree-card';
+
+        const cycle = !!group.has_cycle;
+        const metaLabel = cycle ? 'CYCLE' : 'DEPTH ' + group.depth;
+
+        const head = document.createElement('div');
+        head.className = 'tree-head';
+        head.innerHTML =
+          '<span class="root">ROOT ' + (group.root || '-') + '</span>' +
+          '<span class="meta' + (cycle ? ' cycle' : '') + '">' + metaLabel + '</span>';
+
+        card.appendChild(head);
+
+        const body = document.createElement('div');
+        body.className = 'card-body';
+
+        head.addEventListener('click', () => {
+          card.classList.toggle('collapsed');
+        });
+
+        if (cycle) {
+          const cycleState = document.createElement('div');
+          cycleState.className = 'cycle-state';
+          cycleState.innerHTML =
+            '<div class="cycle-icon">⟳</div>' +
+            '<div class="cycle-badge">CYCLE DETECTED</div>' +
+            '<div class="cycle-empty">tree: {} (no diagram)</div>';
+          body.appendChild(cycleState);
+        } else {
+          const diagramWrap = document.createElement('div');
+          diagramWrap.className = 'tree-diagram-wrap';
+          const svg = createSvgDiagram(group);
+
+          if (svg) {
+            diagramWrap.appendChild(svg);
+          } else {
+            const emptyState = document.createElement('div');
+            emptyState.className = 'cycle-empty';
+            emptyState.textContent = 'No diagram available for this tree.';
+            emptyState.style.padding = '10px';
+            diagramWrap.appendChild(emptyState);
+          }
+
+          body.appendChild(diagramWrap);
+        }
+
+        card.appendChild(body);
+        hierarchyCards.appendChild(card);
+      });
+    }
+
+    function renderSummary(summary) {
+      sumTrees.textContent = summary && Number.isFinite(summary.total_trees) ? String(summary.total_trees) : '0';
+      sumCycles.textContent = summary && Number.isFinite(summary.total_cycles) ? String(summary.total_cycles) : '0';
+      sumLargest.textContent = summary && summary.largest_tree_root ? String(summary.largest_tree_root) : '-';
+    }
+
+    function renderFullResult(payload) {
+      rawJson.textContent = JSON.stringify(payload, null, 2);
+      resultsShell.classList.remove('show');
+      void resultsShell.offsetWidth;
+      resultsShell.classList.add('show');
+      toggleRawPanel(false);
+
+      renderIdentity(payload);
+      renderHierarchies(payload.groups || payload.hierarchies || []);
+      createTagList(invalidTags, payload.invalid_entries || [], 'warn');
+      createTagList(duplicateTags, payload.duplicate_edges || [], 'dup');
+      renderSummary(payload.summary || {});
+    }
+
+    async function submitData() {
+      clearError();
+      setLoading(true);
+
+      try {
+        addTagsFromEditor();
+        const data = [...queuedTags];
+
+        const response = await fetch(endpoint, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ data })
+        });
+
+        const payload = await response.json().catch(() => ({}));
+
+        if (!response.ok) {
+          throw new Error(payload.message || 'Request failed with status ' + response.status);
+        }
+
+        renderFullResult(payload);
+        addHistoryEntry(payload, data.length);
+      } catch (error) {
+        showError('ERROR: ' + (error && error.message ? error.message : 'Unable to reach API'));
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    rawHead.addEventListener('click', (event) => {
+      if (event.target === copyJsonBtn) {
+        return;
+      }
+      toggleRawPanel();
+    });
+
+    copyJsonBtn.addEventListener('click', async () => {
+      const text = rawJson.textContent || '{}';
+      try {
+        await navigator.clipboard.writeText(text);
+        copyJsonBtn.textContent = 'Copied';
+      } catch (error) {
+        copyJsonBtn.textContent = 'Copy Failed';
+      }
+
+      setTimeout(() => {
+        copyJsonBtn.textContent = 'Copy';
+      }, 1200);
+    });
+
+    tagInputShell.addEventListener('click', () => {
+      tagEditor.focus();
+    });
+
+    tagEditor.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter' || event.key === ',') {
+        event.preventDefault();
+        addTagsFromEditor();
+        return;
+      }
+
+      if (event.ctrlKey && event.key === 'Enter') {
+        event.preventDefault();
+        submitData();
+      }
+    });
+
+    tagEditor.addEventListener('paste', (event) => {
+      const pasted = event.clipboardData ? event.clipboardData.getData('text') : '';
+      if (!pasted) {
+        return;
+      }
+
+      event.preventDefault();
+      addTags(splitRawInput(pasted));
+    });
+
+    tagEditor.addEventListener('blur', () => {
+      addTagsFromEditor();
+    });
+
+    loadExampleBtn.addEventListener('click', loadSpecExample);
+    clearAllBtn.addEventListener('click', clearAllTags);
+    historyToggle.addEventListener('click', toggleHistory);
+    historyClose.addEventListener('click', closeHistory);
+    clearHistoryBtn.addEventListener('click', clearHistory);
+
+    loadHistoryFromStorage();
+    renderHistoryList();
+    loadSpecExample();
+    submitBtn.addEventListener('click', submitData);
+  </script>
+</body>
+</html>
