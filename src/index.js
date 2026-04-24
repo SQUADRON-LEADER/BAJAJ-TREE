@@ -1,6 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const bodyParser = require('body-parser');
+const path = require('path');
 const bfhlRouter = require('./route');
 const { startTimer } = require('./utils/timer');
 
@@ -8,6 +9,9 @@ const app = express();
 
 app.use(cors());
 app.use(bodyParser.json());
+
+// Serve the frontend (index.html) as a static file
+app.use(express.static(path.join(__dirname, '..')));
 
 app.use((req, res, next) => {
   const getElapsed = startTimer();
